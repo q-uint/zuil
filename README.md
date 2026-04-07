@@ -40,7 +40,8 @@ fn onMessage(msg: []const u8) void {
 |--------|-------------|
 | `init(Options)` | Create window and webview |
 | `run()` | Enter the event loop |
-| `eval(js)` | Execute JavaScript |
+| `evaluateJs(js)` | Execute JavaScript |
+| `dispatchEvaluateJs(js)` | Execute JavaScript from any thread |
 | `setTitle(title)` | Change window title |
 | `setHtml(html)` | Load HTML content |
 | `navigate(url)` | Navigate to a URL |

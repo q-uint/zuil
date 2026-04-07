@@ -37,6 +37,14 @@ const CGSize = extern struct {
     height: CGFloat,
 };
 
+const dispatch_queue_t = *opaque {};
+extern "c" var _dispatch_main_q: anyopaque;
+extern "c" fn dispatch_async_f(queue: dispatch_queue_t, context: ?*anyopaque, work: *const fn (?*anyopaque) callconv(.c) void) void;
+
+fn dispatch_get_main_queue() dispatch_queue_t {
+    return @ptrCast(&_dispatch_main_q);
+}
+
 extern "c" fn objc_msgSend() void;
 extern "c" fn objc_getClass(name: [*:0]const u8) ?Class;
 extern "c" fn sel_registerName(name: [*:0]const u8) SEL;
@@ -176,8 +184,24 @@ pub const WebView = struct {
         msgSend(void, self.app, "run", .{});
     }
 
-    pub fn eval(self: *WebView, js: [*:0]const u8) void {
+    pub fn evaluateJs(self: *WebView, js: [*:0]const u8) void {
         msgSend(void, self.webview, "evaluateJavaScript:completionHandler:", .{ nsString(js), @as(?id, null) });
+    }
+
+    pub fn dispatchEvaluateJs(self: *WebView, js: [*:0]const u8) void {
+        const Context = struct {
+            wv: *WebView,
+            code: [*:0]const u8,
+
+            fn work(ctx_ptr: ?*anyopaque) callconv(.c) void {
+                const ctx: *@This() = @ptrCast(@alignCast(ctx_ptr));
+                ctx.wv.evaluateJs(ctx.code);
+                std.heap.page_allocator.destroy(ctx);
+            }
+        };
+        const ctx = std.heap.page_allocator.create(Context) catch return;
+        ctx.* = .{ .wv = self, .code = js };
+        dispatch_async_f(dispatch_get_main_queue(), @ptrCast(ctx), &Context.work);
     }
 
     pub fn setTitle(self: *WebView, title: [*:0]const u8) void {
